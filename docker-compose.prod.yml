@@ -1,0 +1,85 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - ecommerce-network
+    restart: always
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    networks:
+      - ecommerce-network
+    restart: always
+
+  user-service:
+    image: ${DOCKER_REGISTRY}/user-service:${VERSION}
+    environment:
+      - DB_HOST=postgres
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+    networks:
+      - ecommerce-network
+    restart: always
+    deploy:
+      replicas: 2
+
+  product-service:
+    image: ${DOCKER_REGISTRY}/product-service:${VERSION}
+    environment:
+      - DB_HOST=postgres
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=redis
+    networks:
+      - ecommerce-network
+    restart: always
+    deploy:
+      replicas: 2
+
+  cart-service:
+    image: ${DOCKER_REGISTRY}/cart-service:${VERSION}
+    environment:
+      - REDIS_HOST=redis
+    networks:
+      - ecommerce-network
+    restart: always
+    deploy:
+      replicas: 2
+
+  frontend:
+    image: ${DOCKER_REGISTRY}/frontend:${VERSION}
+    networks:
+      - ecommerce-network
+    restart: always
+
+  nginx:
+    image: nginx:alpine
+    volumes:
+      - ./nginx/nginx.prod.conf:/etc/nginx/nginx.conf
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - ecommerce-network
+    restart: always
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  ecommerce-network:
+    driver: bridge

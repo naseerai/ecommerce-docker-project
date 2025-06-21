@@ -1,0 +1,44 @@
+name: Docker Build and Test
+
+on:
+  pull_request:
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'docker-compose*.yml'
+      - 'Dockerfile*'
+
+jobs:
+  docker-build-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Build all services
+      run: |
+        docker-compose build --parallel
+    
+    - name: Start services
+      run: |
+        docker-compose up -d
+        sleep 30  # Wait for services to start
+    
+    - name: Test service health
+      run: |
+        curl -f http://localhost:3001/health || exit 1
+        curl -f http://localhost:3002/health || exit 1
+        curl -f http://localhost:3003/health || exit 1
+        curl -f http://localhost:3000 || exit 1
+    
+    - name: Run integration tests
+      run: |
+        # Add integration test commands here
+        echo "Running integration tests..."
+    
+    - name: Stop services
+      run: |
+        docker-compose down
