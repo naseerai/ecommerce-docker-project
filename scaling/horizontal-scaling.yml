@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  user-service:
+    image: user-service:latest
+    deploy:
+      replicas: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+    environment:
+      - DB_HOST=postgres
+      - REDIS_HOST=redis
+    networks:
+      - ecommerce-network
+
+  product-service:
+    image: product-service:latest
+    deploy:
+      replicas: 4
+      update_config:
+        parallelism: 2
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+    environment:
+      - DB_HOST=postgres
+      - REDIS_HOST=redis
+    networks:
+      - ecommerce-network
+
+  # Load balancer with multiple instances
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    deploy:
+      replicas: 2
+      placement:
+        constraints: [node.role == manager]
+    volumes:
+      - ./nginx/nginx.load-balance.conf:/etc/nginx/nginx.conf
+    networks:
+      - ecommerce-network
+
+networks:
+  ecommerce-network:
+    driver: overlay
+    attachable: true
